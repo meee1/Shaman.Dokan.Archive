@@ -160,9 +160,13 @@ namespace Shaman.Dokan
                 FullName = info.FullName,
                 GetChildrenDelegate = () =>
                 {
-                    var files = Directory.GetFiles(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x)).ToList();
-                    var dirs = Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
-                    return files.Concat(dirs).ToList();
+                    if (Directory.Exists(info.FullName))
+                    {
+                        var files = Directory.GetFiles(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x)).ToList();
+                        var dirs = Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
+                        return files.Concat(dirs).ToList();
+                    }
+                    return null;
                 }
             };
 
