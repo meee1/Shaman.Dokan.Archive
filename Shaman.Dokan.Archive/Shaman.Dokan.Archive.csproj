@@ -7,10 +7,18 @@
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
-  <ItemGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <PlatformTarget>x86</PlatformTarget>
+    <DefineConstants>TRACE;DEBUG;NET46</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Shaman.SevenZipSharp" Version="1.0.6.3" />
-    <PackageReference Include="Shaman.Dokan.Base" Version="1.0.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shaman.Dokan.Base\Shaman.Dokan.Base\Shaman.Dokan.Base.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="7z.dll">

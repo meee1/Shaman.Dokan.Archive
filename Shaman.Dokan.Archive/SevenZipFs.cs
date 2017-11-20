@@ -20,6 +20,10 @@ namespace Shaman.Dokan
             extractor = new SevenZipExtractor(path);
             root = CreateTree<ArchiveFileInfo>(extractor.ArchiveFileData, x => x.FileName, x => IsDirectory(x.Attributes));
 
+            CheckDirectorys(root);
+
+            extractor.Extracting += Extractor_Extracting;
+            extractor.FileExtractionStarted += Extractor_FileExtractionStarted;
 
             cache = new MemoryStreamCache<FsNode<ArchiveFileInfo>>((item, stream) =>
             {
@@ -29,14 +33,40 @@ namespace Shaman.Dokan
                 }
             });
         }
+
+        private void Extractor_FileExtractionStarted(object sender, FileInfoEventArgs e)
+        {
+            Console.WriteLine("Extracting " + e.FileInfo.FileName);
+        }
+
+        private void Extractor_Extracting(object sender, ProgressEventArgs e)
+        {
+            Console.WriteLine("Extracting " + e.PercentDone);
+        }
+
+        void CheckDirectorys(FsNode<ArchiveFileInfo> myroot)
+        {
+            foreach (var item in myroot.Children)
+            {
+                if (item.Children != null && item.Children.Count > 0)
+                {
+                    var info = ((ArchiveFileInfo) item.Info);
+                    info.Attributes = (int)FileAttributes.Directory;
+
+                    item.Info = info;
+
+                    CheckDirectorys(item);
+                }
+            }
+        }
+
         private string zipfile;
         public override string SimpleMountName => "SevenZipFs-" + zipfile;
 
         private object readerLock = new object();
 
         public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
-        {
-
+       {
             if (IsBadName(fileName)) return NtStatus.ObjectNameInvalid;
             if ((access & ModificationAttributes) != 0) return NtStatus.DiskFull;
 
@@ -48,7 +78,15 @@ namespace Shaman.Dokan
                 {
                     Console.WriteLine("ReadData: " + fileName);
                     info.Context = cache.OpenStream(item, (long)item.Info.Size);
+                    /*
+                    info.Context = new MemoryStream();
 
+                    lock (readerLock)
+                    {
+                        extractor.ExtractFile(fileName, (Stream) info.Context);
+                        ((Stream) info.Context).Seek(0, SeekOrigin.Begin);
+                    }
+                    */
                 }
                 return NtStatus.Success;
             }
@@ -80,7 +118,7 @@ namespace Shaman.Dokan
             return NtStatus.Success;
         }
 
-        private FsNode<ArchiveFileInfo> GetFile(string fileName)
+        public FsNode<ArchiveFileInfo> GetFile(string fileName)
         {
             return GetNode(root, fileName);
         }
