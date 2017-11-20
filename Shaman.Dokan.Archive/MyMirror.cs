@@ -166,7 +166,9 @@ namespace Shaman.Dokan
                 {
                     if (Directory.Exists(info.FullName))
                     {
-                        var files = Directory.GetFiles(info.FullName, "*.rar", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x)).ToList();
+                        var files = Directory.GetFiles(info.FullName, "*.rar", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
+                        files = files.Where(a =>
+                            (a.Name.ToLower().Contains("part01") || !a.Name.ToLower().Contains("part"))).ToList();
                         var dirs = Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
                         return files.Concat(dirs).Where(a => a != null).ToList();
                     }
