@@ -13,9 +13,13 @@ namespace Shaman.Dokan
     {
         private string path = "";
 
+        FsNode<FileInfo> root;
+
         public MyMirror(string path)
         {
             this.path = path.TrimEnd('\\');
+
+            root = GetFileInfo(this.path);
         }
         
         public override string SimpleMountName => "MyMirror-" + path;
@@ -27,7 +31,7 @@ namespace Shaman.Dokan
             if (IsBadName(fileName)) return NtStatus.ObjectNameInvalid;
             if ((access & ModificationAttributes) != 0) return NtStatus.DiskFull;
 
-            var item = GetFile(path.TrimEnd('\\') + fileName);
+            var item = GetFile(fileName);
             if (item == null) return DokanResult.FileNotFound;
             if (item.Info.FullName != null && !isDirectory(item))
             {
@@ -39,12 +43,12 @@ namespace Shaman.Dokan
 
                     if (archive != null)
                     {
-                        var idx = fileName.IndexOf(archive.FullName);
+                        var idx = fileName.ToLower().IndexOf(archive.FullName.ToLower());
                         var file = fileName.Substring(0, idx-1);
 
                         try
                         {
-                            return cache[(path.TrimEnd('\\') + file).ToLower()].CreateFile(archive.FullName, access, share, mode, options,
+                            return cache[path + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
                                 info);
                         }
@@ -59,8 +63,8 @@ namespace Shaman.Dokan
                     else
                     {
                         info.Context =
-                            File.OpenRead(path.TrimEnd('\\') +
-                                          fileName);
+                            File.Open(path +
+                                          fileName, FileMode.Open, System.IO.FileAccess.Read, FileShare.Read);
                     }
 
                 }
@@ -75,8 +79,15 @@ namespace Shaman.Dokan
 
         Dictionary<string,SevenZipFs> cache = new Dictionary<string, SevenZipFs>();
 
-        private FsNode<FileInfo> GetFile(string fileName)
+        public FsNode<FileInfo> GetFile(string fileName)
         {
+            return GetNode(root, fileName);
+        }
+        
+        private FsNode<FileInfo> GetFileInfo(string fileName)
+        {
+            FsNode<FileInfo> answer;
+
             Console.WriteLine("GetFile: " + fileName);
 
             if (!File.Exists(fileName) && !Directory.Exists(fileName) || fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
@@ -112,7 +123,7 @@ namespace Shaman.Dokan
                         //if((fsnodeinfo.Info.Attributes & (uint)FileAttributes.Directory) != 0)
                         //info2.Attributes = info2.Attributes | FileAttributes.Directory;
 
-                        return new FsNode<FileInfo>()
+                        var answerarchive = new FsNode<FileInfo>()
                         {
                             Tag = fsnodeinfo,
                             Info = info2,
@@ -120,13 +131,14 @@ namespace Shaman.Dokan
                             FullName = info2.FullName,
                             GetChildrenDelegate = () =>
                             {
-                                return fsnodeinfo.Children
-                                    .Select(x =>
-                                        GetFile(file + Path.DirectorySeparatorChar + subpath +
-                                                Path.DirectorySeparatorChar +
-                                                x)).ToList();
+                                return fsnodeinfo?.Children?
+                                    .Select(x => GetFileInfo(
+                                            file + Path.DirectorySeparatorChar + subpath + Path.DirectorySeparatorChar + x))?
+                                            .ToList();
                             }
                         };
+
+                        return answerarchive;
                     }
                     catch (Exception ex)
                     {
@@ -141,22 +153,25 @@ namespace Shaman.Dokan
             }
 
             var info = new FileInfo(fileName);
-            return new FsNode<FileInfo>()
+            answer = new FsNode<FileInfo>()
             {
                 Info = info,
                 Name = info.Name,
                 FullName = info.FullName,
                 GetChildrenDelegate = () =>
                 {
-                    return Directory.GetFiles(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFile(x)).ToList().Concat(
-                           Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFile(x))).ToList();
+                    var files = Directory.GetFiles(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x)).ToList();
+                    var dirs = Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
+                    return files.Concat(dirs).ToList();
                 }
             };
+
+            return answer;
         }
 
         public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
         {
-            var item = GetFile(path.TrimEnd('\\')+ fileName);
+            var item = GetFile(fileName);
             if (item == null)
             {
                 fileInfo = default(FileInformation);
@@ -168,9 +183,9 @@ namespace Shaman.Dokan
 
         bool isDirectory(FsNode<FileInfo> info)
         {
-            if (info.Name.ToLower().EndsWith(".rar"))
+            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".rar"))
                 return true;
-            if (info.Name.ToLower().EndsWith(".zip"))
+            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".zip"))
                 return true;
             if (info.Tag != null)
             {
@@ -229,7 +244,7 @@ namespace Shaman.Dokan
         {
             try
             {
-                var item = GetFile(path.TrimEnd('\\') + fileName);
+                var item = GetFile(fileName);
                 if (item == null) return null;
 
                 if (isDirectory(item))

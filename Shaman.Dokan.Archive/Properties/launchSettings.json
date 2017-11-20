@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Shaman.Dokan.Archive": {
+      "commandName": "Project",
+      "commandLineArgs": "z:\\"
+    }
+  }
+}
