@@ -25,6 +25,8 @@ namespace Shaman.Dokan
                 return 1;
             }
 
+            Console.WriteLine("64bit process: " + Environment.Is64BitProcess);
+
             if (Directory.Exists(filedir))
                 filedir = filedir.TrimEnd('\\') + Path.DirectorySeparatorChar;
 

@@ -5,7 +5,7 @@
     <AssemblyOriginatorKeyFile>ShamanOpenSourceKey.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <PlatformTarget>x86</PlatformTarget>
@@ -15,9 +15,7 @@
     <DefineConstants>TRACE;DEBUG;NET46</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Shaman.SevenZipSharp" Version="1.0.6.3" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="..\..\SevenZipSharp\SevenZip\Shaman.SevenZipSharp\Shaman.SevenZipSharp.csproj" />
     <ProjectReference Include="..\..\Shaman.Dokan.Base\Shaman.Dokan.Base\Shaman.Dokan.Base.csproj" />
   </ItemGroup>
   <ItemGroup>
