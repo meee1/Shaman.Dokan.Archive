@@ -78,15 +78,6 @@ namespace Shaman.Dokan
                 {
                     Console.WriteLine("ReadData: " + fileName);
                     info.Context = cache.OpenStream(item, (long)item.Info.Size);
-                    /*
-                    info.Context = new MemoryStream();
-
-                    lock (readerLock)
-                    {
-                        extractor.ExtractFile(fileName, (Stream) info.Context);
-                        ((Stream) info.Context).Seek(0, SeekOrigin.Begin);
-                    }
-                    */
                 }
                 return NtStatus.Success;
             }

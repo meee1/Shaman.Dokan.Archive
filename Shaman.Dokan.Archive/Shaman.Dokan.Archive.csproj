@@ -8,13 +8,16 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <PlatformTarget>x86</PlatformTarget>
-    <DefineConstants>TRACE;DEBUG;NET46</DefineConstants>
+    <PlatformTarget>x64</PlatformTarget>
+    <DefineConstants>DEBUG;NET46;DEBUG;NET46</DefineConstants>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\dokan-dotnet\DokanNet\DokanNet.csproj" />
     <ProjectReference Include="..\..\SevenZipSharp\SevenZip\Shaman.SevenZipSharp\Shaman.SevenZipSharp.csproj" />
     <ProjectReference Include="..\..\Shaman.Dokan.Base\Shaman.Dokan.Base\Shaman.Dokan.Base.csproj" />
   </ItemGroup>
