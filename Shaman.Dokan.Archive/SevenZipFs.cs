@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DokanNet;
 using SevenZip;
@@ -27,10 +28,16 @@ namespace Shaman.Dokan
 
             cache = new MemoryStreamCache<FsNode<ArchiveFileInfo>>((item, stream) =>
             {
-                lock (readerLock)
+                var th = new Thread(action =>
                 {
-                    extractor.ExtractFile(item.Info.Index, stream);
-                }
+                    lock (readerLock)
+                    {
+                        extractor.ExtractFile(item.Info.Index, stream);
+                    }
+                });
+                th.Start();
+
+                th.Join();
             });
         }
 

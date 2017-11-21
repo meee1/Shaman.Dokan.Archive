@@ -32,7 +32,12 @@ namespace Shaman.Dokan
                 filedir = filedir.TrimEnd('\\') + Path.DirectorySeparatorChar;
 
             Console.CancelKeyPress += Console_CancelKeyPress;
-            Archive.ConsoleExit.Setup((type) => { cleanup(); return true; });
+            Archive.ConsoleExit.Setup((type) =>
+            {
+                cleanup();
+                cancel = true;
+                return true;
+            });
 
             new Thread(() =>
             {
