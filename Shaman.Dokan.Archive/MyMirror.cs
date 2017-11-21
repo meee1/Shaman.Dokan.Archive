@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DokanNet;
 using SevenZip;
+using System.Threading;
 
 namespace Shaman.Dokan
 {
@@ -27,8 +28,20 @@ namespace Shaman.Dokan
         
         public override string SimpleMountName => "MyMirror-" + path;
 
+        DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[MyMirror]");
+
         public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
         {
+            var tid = Thread.CurrentThread.ManagedThreadId;
+
+            logger.Debug(tid+" CreateFileProxy : {0}", fileName);
+            logger.Debug(tid + " \tCreationDisposition\t{0}", (FileMode)mode);
+            logger.Debug(tid + " \tFileAccess\t{0}", (DokanNet.FileAccess)access);
+            logger.Debug(tid + " \tFileShare\t{0}", (FileShare)share);
+            logger.Debug(tid + " \tFileOptions\t{0}", options);
+            logger.Debug(tid + " \tFileAttributes\t{0}", attributes);
+            logger.Debug(tid + " \tContext\t{0}", info);
+
             if (IsBadName(fileName)) return NtStatus.ObjectNameInvalid;
             if ((access & ModificationAttributes) != 0) return NtStatus.DiskFull;
 
@@ -38,7 +51,7 @@ namespace Shaman.Dokan
             {
                 if ((access & DokanNet.FileAccess.ReadData) != 0)
                 {
-                    Console.WriteLine("ReadData: " + fileName);
+                    Console.WriteLine("MyMirror ReadData: " + fileName);
 
                     var archive = item.Tag as FsNode<ArchiveFileInfo>;
 
@@ -89,7 +102,7 @@ namespace Shaman.Dokan
         {
             FsNode<FileInfo> answer;
 
-            Console.WriteLine("GetFile: " + fileName);
+            logger.Debug("GetFile: " + fileName);
 
             if (!File.Exists(fileName) && !Directory.Exists(fileName) || fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
             {
@@ -208,6 +221,7 @@ namespace Shaman.Dokan
 
         FileInformation GetFileInformation(FsNode<FileInfo> item)
         {
+            logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
             if (item == null)
                 return new FileInformation();
 
@@ -254,6 +268,8 @@ namespace Shaman.Dokan
         {
             try
             {
+                logger.Debug("FindFilesHelper: '{0}' '{1}'", fileName, searchPattern);
+                
                 var item = GetFile(fileName);
                 if (item == null) return null;
 

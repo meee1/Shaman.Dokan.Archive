@@ -13,6 +13,7 @@ namespace Shaman.Dokan
     class SevenZipProgram
     {
         static bool cancel = false;
+        static List<string> mounts = new List<string>();
 
         static int Main(string[] args)
         {
@@ -31,62 +32,34 @@ namespace Shaman.Dokan
                 filedir = filedir.TrimEnd('\\') + Path.DirectorySeparatorChar;
 
             Console.CancelKeyPress += Console_CancelKeyPress;
+            Archive.ConsoleExit.Setup((type) => { cleanup(); return true; });
 
-            var myfs = new MyMirror(filedir);
-            myfs.Mount("X:", DokanOptions.NetworkDrive, 4);
+            new Thread(() =>
+            {
+                var myfs = new MyMirror(filedir);
+                mounts.Add("X:");
+                myfs.Mount("X:", DokanOptions.NetworkDrive, 4);
 
-            return 0;
-
-            var rars = Directory.GetFiles(Path.GetDirectoryName(filedir), "*.rar", SearchOption.AllDirectories);
-
-            List<String> mounts = new List<string>();
-
-            Parallel.ForEach(rars, (rar) =>
-                    //foreach (var rar in rars)
-                {
-                    try
-                    {
-                        var file = Path.GetFullPath(rar);
-                        var mountdest = Path.GetDirectoryName(file) + Path.DirectorySeparatorChar +
-                                        Path.GetFileNameWithoutExtension(file);
-
-                        var szfs = new SevenZipFs(file);
-                        Console.WriteLine(szfs.SimpleMountName);
-                        Console.WriteLine(mountdest);
-
-                        Directory.CreateDirectory(mountdest);
-
-                        mounts.Add(mountdest);
-
-                        new Thread(() =>
-                        {
-                            szfs.Mount(mountdest, DokanOptions.MountManager, 4);
-                        }).Start();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex);
-                    }
-                }
-            );
-
+            }).Start();
       
             while (!cancel)
                 Thread.Sleep(500);
 
-            foreach (var mount in mounts)
-            {
-                if (DokanNet.Dokan.RemoveMountPoint(mount))
-                {
-                    Directory.Delete(mount);
-                }
-            }
-
-            //szfs.MountSimple(4);
-            //if (args.Contains("--open"))
-            //Process.Start(mountdest);
+            cleanup();
 
             return 0;
+        }
+
+        private static void cleanup()
+        {
+            foreach (var mount in mounts)
+            {
+                Console.WriteLine("RemoveMountPoint {0}", mount);
+                if (DokanNet.Dokan.RemoveMountPoint(mount))
+                {
+
+                }
+            }
         }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)

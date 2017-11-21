@@ -34,14 +34,18 @@ namespace Shaman.Dokan
             });
         }
 
+        string _extractingfn = "";
+
         private void Extractor_FileExtractionStarted(object sender, FileInfoEventArgs e)
         {
-            Console.WriteLine("Extracting " + e.FileInfo.FileName);
+            _extractingfn = e.FileInfo.FileName;
+            Console.WriteLine("Extracting " + _extractingfn);
         }
 
         private void Extractor_Extracting(object sender, ProgressEventArgs e)
         {
-            Console.WriteLine("Extracting " + e.PercentDone);
+            //((SevenZipExtractor)sender).FileName
+            Console.WriteLine("Extracting " + _extractingfn + " " + e.PercentDone);
         }
 
         void CheckDirectorys(FsNode<ArchiveFileInfo> myroot)
@@ -76,7 +80,7 @@ namespace Shaman.Dokan
             {
                 if ((access & DokanNet.FileAccess.ReadData) != 0)
                 {
-                    Console.WriteLine("ReadData: " + fileName);
+                    Console.WriteLine("SevenZipFs ReadData: " + fileName);
                     info.Context = cache.OpenStream(item, (long)item.Info.Size);
                 }
                 return NtStatus.Success;
