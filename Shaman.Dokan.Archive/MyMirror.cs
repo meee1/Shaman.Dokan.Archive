@@ -33,7 +33,7 @@ namespace Shaman.Dokan
         public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
         {
             var tid = Thread.CurrentThread.ManagedThreadId;
-
+            /*
             logger.Debug(tid+" CreateFileProxy : {0}", fileName);
             logger.Debug(tid + " \tCreationDisposition\t{0}", (FileMode)mode);
             logger.Debug(tid + " \tFileAccess\t{0}", (DokanNet.FileAccess)access);
@@ -41,7 +41,7 @@ namespace Shaman.Dokan
             logger.Debug(tid + " \tFileOptions\t{0}", options);
             logger.Debug(tid + " \tFileAttributes\t{0}", attributes);
             logger.Debug(tid + " \tContext\t{0}", info);
-
+            */
             if (IsBadName(fileName)) return NtStatus.ObjectNameInvalid;
             if ((access & ModificationAttributes) != 0) return NtStatus.DiskFull;
 
@@ -221,7 +221,7 @@ namespace Shaman.Dokan
 
         FileInformation GetFileInformation(FsNode<FileInfo> item)
         {
-            logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
+            //logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
             if (item == null)
                 return new FileInformation();
 
