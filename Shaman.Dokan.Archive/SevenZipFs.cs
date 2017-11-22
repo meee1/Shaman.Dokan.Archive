@@ -32,7 +32,16 @@ namespace Shaman.Dokan
                 {
                     lock (readerLock)
                     {
-                        extractor.ExtractFile(item.Info.Index, stream);
+                        try
+                        {
+                            extractor.ExtractFile(item.Info.Index, stream);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(ex);
+                            Console.ForegroundColor = ConsoleColor.White;
+                        }
                     }
                 });
                 th.Start();

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -16,8 +18,6 @@ namespace Shaman.Dokan
         private string path = "";
 
         FsNode<FileInfo> root;
-
-        object _sevenlock = new object();
 
         public MyMirror(string path)
         {
@@ -98,64 +98,66 @@ namespace Shaman.Dokan
             return GetNode(root, fileName);
         }
         
-        private FsNode<FileInfo> GetFileInfo(string fileName)
+        private FsNode<FileInfo> GetFileInfo(string fileName, FileInfo prefileinfo = null)
         {
-            FsNode<FileInfo> answer;
-
             logger.Debug("GetFile: " + fileName);
 
-            if (!File.Exists(fileName) && !Directory.Exists(fileName) || fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
+            if (!File.Exists(fileName) && !Directory.Exists(fileName) ||
+                fileName.ToLower().EndsWith(".rar") ||
+                fileName.ToLower().EndsWith(".zip")
+                )
             {
-                if (fileName.ToLower().Contains(".rar")|| fileName.ToLower().Contains(".zip"))
+                if (fileName.ToLower().Contains(".rar") || fileName.ToLower().Contains(".zip"))
                 {
-                    var index = fileName.ToLower().IndexOf(".rar");
-
-                    if (index == -1)
-                        index = fileName.ToLower().IndexOf(".zip");
-
-                    var file = fileName.Substring(0, index + 4);
-                    var subpath = fileName.Substring(index+4);
-
                     try
                     {
-                        lock (_sevenlock)
+                        var info2 = new FileInfo(fileName);
+
+                        var index = fileName.ToLower().IndexOf(".rar");
+                        if (index == -1)
+                            index = fileName.ToLower().IndexOf(".zip");
+
+                        var file = fileName.Substring(0, index + 4);
+                        var subpath = fileName.Substring(index + 4);
+
+                        SevenZipFs fs;
+                        cache.TryGetValue(file.ToLower(), out fs);
+                        if (fs == null)
                         {
-                            SevenZipFs fs;
-
-                            cache.TryGetValue(file.ToLower(), out fs);
-
-                            if (fs == null)
-                                fs = new SevenZipFs(file);
-
-                            cache[file.ToLower()] = fs;
-
-                            var fsnodeinfo = fs.GetFile(subpath);
-
-                            if (fsnodeinfo == null)
-                                return null;
-
-                            var info2 = new FileInfo(fileName);
-
-                            //if((fsnodeinfo.Info.Attributes & (uint)FileAttributes.Directory) != 0)
-                            //info2.Attributes = info2.Attributes | FileAttributes.Directory;
-
-                            var answerarchive = new FsNode<FileInfo>()
-                            {
-                                Tag = fsnodeinfo,
-                                Info = info2,
-                                Name = info2.Name,
-                                FullName = info2.FullName,
-                                GetChildrenDelegate = () =>
-                                {
-                                    return fsnodeinfo?.Children?
-                                        .Select(x => GetFileInfo(
-                                            file + Path.DirectorySeparatorChar + subpath + Path.DirectorySeparatorChar +
-                                            x))?.Where(a => a != null).ToList();
-                                }
-                            };
-
-                            return answerarchive;
+                            logger.Debug("SevenZipFs: get list " + file);
+                            fs = new SevenZipFs(file);
                         }
+
+                        cache[file.ToLower()] = fs;
+                        var fsnodeinfo = fs.GetFile(subpath);
+
+                        if (fsnodeinfo == null)
+                            return null;
+
+
+                        var answerarchive = new FsNode<FileInfo>()
+                        {
+                            Tag = fsnodeinfo,
+                            Info = info2,
+                            Name = info2.Name,
+                            FullName = info2.FullName,
+                        };
+
+                        answerarchive.GetChildrenDelegate = () =>
+                        {
+                           
+
+                            answerarchive.Tag = fsnodeinfo;
+
+                            return fsnodeinfo?.Children?
+                                .Select(x => GetFileInfo((
+                                    file + Path.DirectorySeparatorChar + subpath +
+                                    Path.DirectorySeparatorChar +
+                                    x).Replace(""+Path.DirectorySeparatorChar + Path.DirectorySeparatorChar,
+                                    ""+Path.DirectorySeparatorChar)))?.Where(a => a != null).ToList();
+                        };
+
+                        return answerarchive;
                     }
                     catch (Exception ex)
                     {
@@ -169,21 +171,41 @@ namespace Shaman.Dokan
                 return null;
             }
 
-            var info = new FileInfo(fileName);
-            answer = new FsNode<FileInfo>()
+            FileInfo info;
+            if (prefileinfo != null)
+                info = prefileinfo;
+            else
+                info = new FileInfo(fileName);
+
+            var answer = new FsNode<FileInfo>()
             {
                 Info = info,
                 Name = info.Name,
                 FullName = info.FullName,
                 GetChildrenDelegate = () =>
                 {
-                    if (Directory.Exists(info.FullName))
+                    DirectoryInfo dirinfo = new DirectoryInfo(info.FullName);
+
+                    if (dirinfo.Exists)
                     {
-                        var files = Directory.GetFiles(info.FullName, "*.rar", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
-                        files = files.Where(a =>
-                            (a.Name.ToLower().Contains("part01") || !a.Name.ToLower().Contains("part"))).ToList();
-                        var dirs = Directory.GetDirectories(info.FullName, "*", SearchOption.TopDirectoryOnly).Select(x => GetFileInfo(x));
-                        return files.Concat(dirs).Where(a => a != null).ToList();
+                        var files = new ConcurrentBag<FsNode<FileInfo>>();
+                        // get files
+                        var fileInfos = dirinfo.GetFiles("*.rar", SearchOption.TopDirectoryOnly);
+                        Parallel.ForEach(fileInfos, x =>
+                        {
+                            files.Add(GetFileInfo(x.FullName, x));
+                        });
+                        // filter files
+                        var filefilter = files.Where(a =>
+                            a != null &&
+                            (a.Name.ToLower().Contains("part01.rar") || !a.Name.ToLower().Contains(".part")));
+                        // get dirs
+                        var dirs = dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly)
+                            .Select(x => GetFileInfo(x.FullName));
+                        // combine to one list
+                        var combined = filefilter.Concat(dirs).Where(a => a != null);
+                        // return result
+                        return combined.ToList();
                     }
                     return null;
                 }
@@ -210,8 +232,14 @@ namespace Shaman.Dokan
                 return true;
             if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".zip"))
                 return true;
-            if (info.Tag != null)
+            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".7z"))
+                return true;
+            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".iso"))
+                return true;
+            if (info.Tag is FsNode<ArchiveFileInfo>)
             {
+                //var children = info.GetChildrenDelegate();
+
                 if (((((FsNode<ArchiveFileInfo>) info.Tag).Info.Attributes) & (uint) FileAttributes.Directory) > 0)
                     return true;
                 return false;
@@ -262,6 +290,17 @@ namespace Shaman.Dokan
             fileSystemName = volumeLabel = "MyMirror";
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.UnicodeOnDisk | FileSystemFeatures.VolumeIsCompressed;
             return NtStatus.Success;
+        }
+
+        public override NtStatus GetDiskFreeSpace(out long free, out long total, out long used, DokanFileInfo info)
+        {
+            free = 0;
+            total = 1024l*1024*1024*1024;
+            used = total;
+
+            return NtStatus.Success;
+
+            //return base.GetDiskFreeSpace(out free, out total, out used, info);
         }
 
         protected override IList<FileInformation> FindFilesHelper(string fileName, string searchPattern)
