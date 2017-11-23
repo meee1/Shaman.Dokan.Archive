@@ -12,6 +12,7 @@ namespace Shaman.Dokan
 {
     public class SevenZipFs : ReadOnlyFs
     {
+        DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[SevenZipFs]");
 
         public SevenZipExtractor extractor;
         private FsNode<ArchiveFileInfo> root;
@@ -55,13 +56,13 @@ namespace Shaman.Dokan
         private void Extractor_FileExtractionStarted(object sender, FileInfoEventArgs e)
         {
             _extractingfn = e.FileInfo.FileName;
-            Console.WriteLine("Extracting " + _extractingfn);
+            logger.Debug("Extracting " + _extractingfn);
         }
 
         private void Extractor_Extracting(object sender, ProgressEventArgs e)
         {
             //((SevenZipExtractor)sender).FileName
-            Console.WriteLine("Extracting " + _extractingfn + " " + e.PercentDone);
+            logger.Debug("Extracting " + _extractingfn + " " + e.PercentDone);
         }
 
         void CheckDirectorys(FsNode<ArchiveFileInfo> myroot)
@@ -109,7 +110,8 @@ namespace Shaman.Dokan
         }
 
         
-        private MemoryStreamCache<FsNode<ArchiveFileInfo>> cache;
+        public  MemoryStreamCache<FsNode<ArchiveFileInfo>> cache;
+
         public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
         {
             var item = GetFile(fileName);

@@ -5,6 +5,7 @@ using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using DokanNet;
@@ -91,11 +92,24 @@ namespace Shaman.Dokan
             }
         }
 
-        Dictionary<string,SevenZipFs> cache = new Dictionary<string, SevenZipFs>();
+        ConcurrentDictionary<string,SevenZipFs> cache = new ConcurrentDictionary<string, SevenZipFs>();
 
         public FsNode<FileInfo> GetFile(string fileName)
         {
             return GetNode(root, fileName);
+        }
+
+        void Status(string filename="")
+        {
+            var memory = GC.GetTotalMemory(false);
+
+            foreach (var item in cache.ToArray())
+            {
+                foreach (var item2 in item.Value.cache.streams.ToArray())
+                {
+                    logger.Debug("Status: {0} {1} {2} {3} {4} {5}", memory/1024/1024, filename, item.Key, item.Value, item2.Key.FullName, item2.Value.Length);
+                }
+            }
         }
         
         private FsNode<FileInfo> GetFileInfo(string fileName, FileInfo prefileinfo = null)
@@ -131,6 +145,8 @@ namespace Shaman.Dokan
                         cache[file.ToLower()] = fs;
                         var fsnodeinfo = fs.GetFile(subpath);
 
+                        Status(file);
+
                         if (fsnodeinfo == null)
                             return null;
 
@@ -145,8 +161,6 @@ namespace Shaman.Dokan
 
                         answerarchive.GetChildrenDelegate = () =>
                         {
-                           
-
                             answerarchive.Tag = fsnodeinfo;
 
                             return fsnodeinfo?.Children?
@@ -188,9 +202,17 @@ namespace Shaman.Dokan
 
                     if (dirinfo.Exists)
                     {
-                        var files = new ConcurrentBag<FsNode<FileInfo>>();
+                        // get dirs
+                        var dirs = new ConcurrentBag<FsNode<FileInfo>>();
+                        Parallel.ForEach(dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly), x =>
+                        {
+                            dirs.Add(GetFileInfo(x.FullName));
+                        });
+
                         // get files
+                        var files = new ConcurrentBag<FsNode<FileInfo>>();
                         var fileInfos = dirinfo.GetFiles("*.rar", SearchOption.TopDirectoryOnly);
+                        int _id = 0;
                         Parallel.ForEach(fileInfos, x =>
                         {
                             files.Add(GetFileInfo(x.FullName, x));
@@ -199,9 +221,7 @@ namespace Shaman.Dokan
                         var filefilter = files.Where(a =>
                             a != null &&
                             (a.Name.ToLower().Contains("part01.rar") || !a.Name.ToLower().Contains(".part")));
-                        // get dirs
-                        var dirs = dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly)
-                            .Select(x => GetFileInfo(x.FullName));
+  
                         // combine to one list
                         var combined = filefilter.Concat(dirs).Where(a => a != null);
                         // return result
@@ -228,14 +248,17 @@ namespace Shaman.Dokan
 
         bool isDirectory(FsNode<FileInfo> info)
         {
-            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".rar"))
-                return true;
-            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".zip"))
-                return true;
-            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".7z"))
-                return true;
-            if (File.Exists(info.FullName) && info.Name.ToLower().EndsWith(".iso"))
-                return true;
+            if (info.Info.Exists || File.Exists(info.FullName))
+            {
+                if (info.Name.ToLower().EndsWith(".rar"))
+                    return true;
+                if (info.Name.ToLower().EndsWith(".zip"))
+                    return true;
+                if (info.Name.ToLower().EndsWith(".7z"))
+                    return true;
+                if (info.Name.ToLower().EndsWith(".iso"))
+                    return true;
+            }
             if (info.Tag is FsNode<ArchiveFileInfo>)
             {
                 //var children = info.GetChildrenDelegate();
@@ -316,13 +339,10 @@ namespace Shaman.Dokan
                 {
                     if (item.Children == null) return new FileInformation[] { };
                     var matcher = GetMatcher(searchPattern);
+                    var list = new ConcurrentBag<FileInformation>();
                     var where = item.Children.Where(x => x != null && matcher(x.Name));
-                    var cnt1 = where.Count();
-                    var select = where.Select(x => GetFileInformation(x));
-                    var cnt2 = select.Count();
-                    var list = select.ToList();
-
-                    return list;
+                    Parallel.ForEach(where, x => { list.Add(GetFileInformation(x)); });
+                    return list.ToArray();
                 }
             }
             catch (Exception ex)
