@@ -25,6 +25,20 @@ namespace Shaman.Dokan
             this.path = path.TrimEnd('\\');
 
             root = GetFileInfo(this.path);
+
+            new Thread(() =>
+            {
+                while (true)
+                {
+                    Thread.Sleep(5000);
+                    Console.WriteLine("*******");
+                    //Status();
+                    foreach (var item in MemoryStreamInternal.instances.ToArray())
+                    {
+                        Console.WriteLine("MemoryStreamInternal: {0} len: {1} datalen: {2}", item.Filename, item.Length, item.data?.Length);
+                    }
+                }
+            }) { IsBackground = true }.Start();
         }
         
         public override string SimpleMountName => "MyMirror-" + path;
@@ -63,9 +77,11 @@ namespace Shaman.Dokan
 
                         try
                         {
-                            return cache[path + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
+                            var af = cache[path + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
                                 info);
+
+                            return af;
                         }
                         catch (Exception ex)
                         {
@@ -99,7 +115,7 @@ namespace Shaman.Dokan
             return GetNode(root, fileName);
         }
 
-        void Status(string filename="")
+        void Status()
         {
             var memory = GC.GetTotalMemory(false);
 
@@ -107,7 +123,8 @@ namespace Shaman.Dokan
             {
                 foreach (var item2 in item.Value.cache.streams.ToArray())
                 {
-                    logger.Debug("Status: {0} {1} {2} {3} {4} {5}", memory/1024/1024, filename, item.Key, item.Value, item2.Key.FullName, item2.Value.Length);
+                    logger.Debug("Status: {0} {1} {2} {3} {4} {5} {6}", memory / 1024 / 1024, item2.Value.Filename,
+                        item.Key, "", item2.Key.FullName, item2.Value.ms.data?.Length, item2.Value.Lastread);
                 }
             }
         }
@@ -144,8 +161,6 @@ namespace Shaman.Dokan
 
                         cache[file.ToLower()] = fs;
                         var fsnodeinfo = fs.GetFile(subpath);
-
-                        Status(file);
 
                         if (fsnodeinfo == null)
                             return null;

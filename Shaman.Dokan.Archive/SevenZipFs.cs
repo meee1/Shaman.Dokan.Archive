@@ -24,8 +24,7 @@ namespace Shaman.Dokan
 
             CheckDirectorys(root);
 
-            extractor.Extracting += Extractor_Extracting;
-            extractor.FileExtractionStarted += Extractor_FileExtractionStarted;
+            extractor = null;
 
             cache = new MemoryStreamCache<FsNode<ArchiveFileInfo>>((item, stream) =>
             {
@@ -35,7 +34,13 @@ namespace Shaman.Dokan
                     {
                         try
                         {
+                            extractor = new SevenZipExtractor(path);
+                            extractor.Extracting += Extractor_Extracting;
+                            extractor.FileExtractionStarted += Extractor_FileExtractionStarted;
+
                             extractor.ExtractFile(item.Info.Index, stream);
+
+                            extractor = null;
                         }
                         catch (Exception ex)
                         {
@@ -98,7 +103,7 @@ namespace Shaman.Dokan
                 if ((access & DokanNet.FileAccess.ReadData) != 0)
                 {
                     Console.WriteLine("SevenZipFs ReadData: " + fileName);
-                    info.Context = cache.OpenStream(item, (long)item.Info.Size);
+                    info.Context = cache.OpenStream(item, (long)item.Info.Size, false, fileName);
                 }
                 return NtStatus.Success;
             }
