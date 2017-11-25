@@ -24,6 +24,7 @@ namespace Shaman.Dokan
 
             CheckDirectorys(root);
 
+            extractor.Dispose();
             extractor = null;
 
             cache = new MemoryStreamCache<FsNode<ArchiveFileInfo>>((item, stream) =>
@@ -40,6 +41,7 @@ namespace Shaman.Dokan
 
                             extractor.ExtractFile(item.Info.Index, stream);
 
+                            extractor.Dispose();
                             extractor = null;
                         }
                         catch (Exception ex)
@@ -102,7 +104,13 @@ namespace Shaman.Dokan
             {
                 if ((access & DokanNet.FileAccess.ReadData) != 0)
                 {
+                    if (item.Info.Size > int.MaxValue)
+                    {
+                        Console.WriteLine("SevenZipFs ReadData: file to large " + fileName);
+                        return NtStatus.AccessDenied;
+                    }
                     Console.WriteLine("SevenZipFs ReadData: " + fileName);
+
                     info.Context = cache.OpenStream(item, (long)item.Info.Size, false, fileName);
                 }
                 return NtStatus.Success;

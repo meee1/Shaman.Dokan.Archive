@@ -31,7 +31,7 @@ namespace Shaman.Dokan
                 while (true)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("*******");
+                    //Console.WriteLine("*******");
                     //Status();
                     foreach (var item in MemoryStreamInternal.instances.ToArray())
                     {
@@ -352,6 +352,9 @@ namespace Shaman.Dokan
 
                 if (isDirectory(item))
                 {
+                    // if children are older than 1 hour, force regenerate
+                    if (item.ChildrenAge.TotalHours > 1)
+                        item.Children = null;
                     if (item.Children == null) return new FileInformation[] { };
                     var matcher = GetMatcher(searchPattern);
                     var list = new ConcurrentBag<FileInformation>();
