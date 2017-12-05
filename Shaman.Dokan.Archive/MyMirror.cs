@@ -354,7 +354,10 @@ namespace Shaman.Dokan
                 {
                     // if children are older than 1 hour, force regenerate
                     if (item.ChildrenAge.TotalHours > 1)
+                    {
+                        logger.Debug("FindFilesHelper reset children {0}", fileName);
                         item.Children = null;
+                    }
                     if (item.Children == null) return new FileInformation[] { };
                     var matcher = GetMatcher(searchPattern);
                     var list = new ConcurrentBag<FileInformation>();
