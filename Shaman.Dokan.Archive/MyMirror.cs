@@ -54,7 +54,9 @@ namespace Shaman.Dokan
             Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
 
             // invalidate cache
-            GetFileInfo(Path.GetDirectoryName(e.FullPath)).Children = null;
+            var dir = GetFileInfo(Path.GetDirectoryName(e.FullPath));
+            if (dir != null)
+                dir.Children = null;
         }
 
         public override string SimpleMountName => "MyMirror-" + path;
