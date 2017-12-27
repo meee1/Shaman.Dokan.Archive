@@ -26,6 +26,14 @@ namespace Shaman.Dokan
 
             root = GetFileInfo(this.path);
 
+            FileSystemWatcher fsw = new FileSystemWatcher(this.path, "*");
+            fsw.IncludeSubdirectories = true;
+            //fsw.Changed += Fsw_Changed;
+            fsw.Created += Fsw_Changed;
+            fsw.Renamed += Fsw_Changed;
+            fsw.Deleted += Fsw_Changed;
+            fsw.EnableRaisingEvents = true;
+
             new Thread(() =>
             {
                 while (true)
@@ -40,7 +48,15 @@ namespace Shaman.Dokan
                 }
             }) { IsBackground = true }.Start();
         }
-        
+
+        private void Fsw_Changed(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
+
+            // invalidate cache
+            GetFileInfo(Path.GetDirectoryName(e.FullPath)).Children = null;
+        }
+
         public override string SimpleMountName => "MyMirror-" + path;
 
         DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[MyMirror]");
@@ -227,7 +243,6 @@ namespace Shaman.Dokan
                         // get files
                         var files = new ConcurrentBag<FsNode<FileInfo>>();
                         var fileInfos = dirinfo.GetFiles("*.rar", SearchOption.TopDirectoryOnly);
-                        int _id = 0;
                         Parallel.ForEach(fileInfos, x =>
                         {
                             files.Add(GetFileInfo(x.FullName, x));
@@ -352,12 +367,6 @@ namespace Shaman.Dokan
 
                 if (isDirectory(item))
                 {
-                    // if children are older than 1 hour, force regenerate
-                    if (item.ChildrenAge.TotalHours > 1)
-                    {
-                        logger.Debug("FindFilesHelper reset children {0}", fileName);
-                        item.Children = null;
-                    }
                     if (item.Children == null) return new FileInformation[] { };
                     var matcher = GetMatcher(searchPattern);
                     var list = new ConcurrentBag<FileInformation>();
