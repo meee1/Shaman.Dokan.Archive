@@ -20,6 +20,8 @@ namespace Shaman.Dokan
 
         FsNode<FileInfo> root;
 
+        private string[] excludes = new string[] {"$RECYCLE.BIN", "System Volume Information"};
+
         public MyMirror(string path)
         {
             this.path = path.TrimEnd('\\');
@@ -51,6 +53,12 @@ namespace Shaman.Dokan
 
         private void Fsw_Changed(object sender, FileSystemEventArgs e)
         {
+            foreach (var exclude in excludes)
+            {
+                if (e.FullPath.Contains(exclude))
+                    return;
+            }
+
             Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
 
             // invalidate cache
@@ -239,7 +247,10 @@ namespace Shaman.Dokan
                         var dirs = new ConcurrentBag<FsNode<FileInfo>>();
                         Parallel.ForEach(dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly), x =>
                         {
-                            dirs.Add(GetFileInfo(x.FullName));
+                            var dir = GetFileInfo(x.FullName);
+
+                            if (CheckHasValidChildren(x, "*.rar"))
+                                dirs.Add(dir);
                         });
 
                         // get files
@@ -253,7 +264,7 @@ namespace Shaman.Dokan
                         var filefilter = files.Where(a =>
                             a != null &&
                             (a.Name.ToLower().Contains("part01.rar") || !a.Name.ToLower().Contains(".part")));
-  
+
                         // combine to one list
                         var combined = filefilter.Concat(dirs).Where(a => a != null);
                         // return result
@@ -264,6 +275,26 @@ namespace Shaman.Dokan
             };
 
             return answer;
+        }
+
+        private bool CheckHasValidChildren(DirectoryInfo x, string v)
+        {
+            var dirs = x.GetDirectories("*", SearchOption.TopDirectoryOnly);
+
+            var files = x.GetFiles(v, SearchOption.TopDirectoryOnly);
+
+            // we have files in this dir
+            if (files.Length > 0)
+                return true;
+
+            foreach (var dir in dirs)
+            {
+                var local = CheckHasValidChildren(dir, v);
+                if (local)
+                    return true;
+            }
+
+            return false;
         }
 
         public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
