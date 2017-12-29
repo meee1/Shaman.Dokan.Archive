@@ -277,22 +277,30 @@ namespace Shaman.Dokan
             return answer;
         }
 
-        private bool CheckHasValidChildren(DirectoryInfo x, string v)
+        private bool CheckHasValidChildren(DirectoryInfo x, string v, int level = 0)
         {
-            var dirs = x.GetDirectories("*", SearchOption.TopDirectoryOnly);
-
-            var files = x.GetFiles(v, SearchOption.TopDirectoryOnly);
-
-            // we have files in this dir
-            if (files.Length > 0)
-                return true;
-
-            foreach (var dir in dirs)
+            try
             {
-                var local = CheckHasValidChildren(dir, v);
-                if (local)
+                var dirs = x.GetDirectories("*", SearchOption.TopDirectoryOnly);
+
+                var files = x.GetFiles(v, SearchOption.TopDirectoryOnly);
+
+                // we have files in this dir
+                if (files.Length > 0)
                     return true;
+
+                // to save time show the dir if its deep
+                if (level >= 3) // base/1/2/*
+                    return true;
+
+                foreach (var dir in dirs)
+                {
+                    var local = CheckHasValidChildren(dir, v, level + 1);
+                    if (local)
+                        return true;
+                }
             }
+            catch { }
 
             return false;
         }
