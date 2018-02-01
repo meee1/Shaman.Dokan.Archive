@@ -64,7 +64,14 @@ namespace Shaman.Dokan
             // invalidate cache
             var dir = GetFileInfo(Path.GetDirectoryName(e.FullPath));
             if (dir != null)
+            {
                 dir.Children = null;
+                Console.WriteLine("Children set to null for " + dir.FullName);
+            }
+            else
+            {
+                Console.WriteLine("Failed to invalidate children " + dir);
+            }
         }
 
         public override string SimpleMountName => "MyMirror-" + path;
