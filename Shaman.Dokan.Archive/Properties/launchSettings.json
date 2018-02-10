@@ -2,7 +2,7 @@
   "profiles": {
     "Shaman.Dokan.Archive": {
       "commandName": "Project",
-      "commandLineArgs": "z:\\Movies"
+      "commandLineArgs": "z:\\"
     }
   }
 }

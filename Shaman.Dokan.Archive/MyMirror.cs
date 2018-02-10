@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using DokanNet;
 using SevenZip;
 using System.Threading;
+using SharpCompress.Archives.Rar;
 
 namespace Shaman.Dokan
 {
@@ -97,11 +98,11 @@ namespace Shaman.Dokan
             if (item == null) return DokanResult.FileNotFound;
             if (item.Info.FullName != null && !isDirectory(item))
             {
-                if ((access & DokanNet.FileAccess.ReadData) != 0)
+                if ((access & (DokanNet.FileAccess.ReadData | DokanNet.FileAccess.GenericRead) ) != 0)
                 {
                     Console.WriteLine("MyMirror ReadData: " + fileName);
 
-                    var archive = item.Tag as FsNode<ArchiveFileInfo>;
+                    var archive = item.Tag as FsNode<RarArchiveEntry>;
 
                     if (archive != null)
                     {
@@ -110,7 +111,7 @@ namespace Shaman.Dokan
 
                         try
                         {
-                            var af = cache[path + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
+                            var af = cache[path.ToLower() + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
                                 info);
 
@@ -141,7 +142,7 @@ namespace Shaman.Dokan
             }
         }
 
-        ConcurrentDictionary<string,SevenZipFs> cache = new ConcurrentDictionary<string, SevenZipFs>();
+        ConcurrentDictionary<string, SharpCompressFs> cache = new ConcurrentDictionary<string, SharpCompressFs>();
 
         public FsNode<FileInfo> GetFile(string fileName)
         {
@@ -154,11 +155,11 @@ namespace Shaman.Dokan
 
             foreach (var item in cache.ToArray())
             {
-                foreach (var item2 in item.Value.cache.streams.ToArray())
+                /*foreach (var item2 in item.Value.cache.streams.ToArray())
                 {
                     logger.Debug("Status: {0} {1} {2} {3} {4} {5} {6}", memory / 1024 / 1024, item2.Value.Filename,
                         item.Key, "", item2.Key.FullName, item2.Value.ms.data?.Length, item2.Value.Lastread);
-                }
+                }*/
             }
         }
         
@@ -167,9 +168,7 @@ namespace Shaman.Dokan
             logger.Debug("GetFile: " + fileName);
 
             if (!File.Exists(fileName) && !Directory.Exists(fileName) ||
-                fileName.ToLower().EndsWith(".rar") ||
-                fileName.ToLower().EndsWith(".zip")
-                )
+                fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
             {
                 if (fileName.ToLower().Contains(".rar") || fileName.ToLower().Contains(".zip"))
                 {
@@ -184,12 +183,12 @@ namespace Shaman.Dokan
                         var file = fileName.Substring(0, index + 4);
                         var subpath = fileName.Substring(index + 4);
 
-                        SevenZipFs fs;
+                        SharpCompressFs fs;
                         cache.TryGetValue(file.ToLower(), out fs);
                         if (fs == null)
                         {
                             logger.Debug("SevenZipFs: get list " + file);
-                            fs = new SevenZipFs(file);
+                            fs = new SharpCompressFs(file);
                         }
 
                         cache[file.ToLower()] = fs;
@@ -197,7 +196,6 @@ namespace Shaman.Dokan
 
                         if (fsnodeinfo == null)
                             return null;
-
 
                         var answerarchive = new FsNode<FileInfo>()
                         {
@@ -337,11 +335,11 @@ namespace Shaman.Dokan
                 if (info.Name.ToLower().EndsWith(".iso"))
                     return true;
             }
-            if (info.Tag is FsNode<ArchiveFileInfo>)
+            if (info.Tag is FsNode<RarArchiveEntry>)
             {
                 //var children = info.GetChildrenDelegate();
 
-                if (((((FsNode<ArchiveFileInfo>) info.Tag).Info.Attributes) & (uint) FileAttributes.Directory) > 0)
+                if (((FsNode<RarArchiveEntry>) info.Tag).Info.IsDirectory)
                     return true;
                 return false;
             }
@@ -350,7 +348,7 @@ namespace Shaman.Dokan
 
         FileInformation GetFileInformation(FsNode<FileInfo> item)
         {
-            //logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
+            logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
             if (item == null)
                 return new FileInformation();
 
@@ -358,20 +356,20 @@ namespace Shaman.Dokan
             long length = isdir ? 0 : item.Info.Exists ? item.Info.Length : 0;
             FileAttributes attrib = item.Info.Attributes;
 
-            var archive = item.Tag as FsNode<ArchiveFileInfo>;
+            var archive = item.Tag as FsNode<RarArchiveEntry>;
 
-            if (archive != null)
+            if (archive != null && archive.Info != null)
             {
                 length = (long) archive.Info.Size;
-                attrib = (FileAttributes)archive.Info.Attributes;
+                attrib = FileAttributes.Normal;
                 return new FileInformation()
                 {
                     FileName = item.Info.Name,
                     Length = length,
                     Attributes = isdir ? (FileAttributes.Directory) : attrib,
-                    CreationTime = archive.Info.CreationTime,
-                    LastAccessTime = archive.Info.LastAccessTime,
-                    LastWriteTime = archive.Info.LastWriteTime,
+                    CreationTime = archive.Info.CreatedTime,
+                    LastAccessTime = archive.Info.LastAccessedTime,
+                    LastWriteTime = archive.Info.LastModifiedTime,
                 };
             }
 
@@ -396,7 +394,7 @@ namespace Shaman.Dokan
         public override NtStatus GetDiskFreeSpace(out long free, out long total, out long used, DokanFileInfo info)
         {
             free = 0;
-            total = 1024l*1024*1024*1024;
+            total = 1024L*1024*1024*1024;
             used = total;
 
             return NtStatus.Success;

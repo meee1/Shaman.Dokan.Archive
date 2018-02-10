@@ -39,6 +39,8 @@ namespace Shaman.Dokan
                             extractor.Extracting += Extractor_Extracting;
                             extractor.FileExtractionStarted += Extractor_FileExtractionStarted;
 
+
+
                             extractor.ExtractFile(item.Info.Index, stream);
 
                             extractor.Dispose();

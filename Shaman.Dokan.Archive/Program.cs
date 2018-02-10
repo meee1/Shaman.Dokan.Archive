@@ -7,6 +7,8 @@ using SevenZip;
 using System.IO;
 using System.Threading;
 using DokanNet;
+using DokanNet.Logging;
+using SharpCompress.Archives.Rar;
 
 namespace Shaman.Dokan
 {
@@ -43,7 +45,7 @@ namespace Shaman.Dokan
             {
                 var myfs = new MyMirror(filedir);
                 mounts.Add("X:");
-                myfs.Mount("X:", DokanOptions.NetworkDrive, 4);
+                myfs.Mount("X:", DokanOptions.NetworkDrive, 4, new NullLogger());
 
             }).Start();
       
