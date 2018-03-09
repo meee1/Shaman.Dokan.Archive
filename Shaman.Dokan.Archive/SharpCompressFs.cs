@@ -17,16 +17,22 @@ namespace Shaman.Dokan
     {
         DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[SharpCompressFs]");
 
-        public RarArchive extractor;
+        private RarArchive _ext;
+        public RarArchive extractor
+        {
+            get { if (_ext == null || _ext.disposed) _ext = RarArchive.Open(zipfile); return _ext; }
+            set { _ext = value; }
+        }
         private FsNode<RarArchiveEntry> root;
         public SharpCompressFs(string path)
         {
             zipfile = path;
-            extractor = RarArchive.Open(path);
 
             root = CreateTree<RarArchiveEntry>(extractor.Entries, x => x.Key, x => x.IsDirectory);
 
             CheckDirectorys(root);
+
+            extractor.Dispose();
         }
 
         void CheckDirectorys(FsNode<RarArchiveEntry> myroot)

@@ -32,6 +32,13 @@ namespace Shaman.Dokan
             throw new System.NotImplementedException();
         }
 
+        public override void Close()
+        {
+            base.Close();
+            if (entry != null && entry.Archive != null)
+                entry.Archive.Dispose();
+        }
+
         public override int Read(byte[] buffer, int offset, int count)
         {
             long wantstart = Position;
