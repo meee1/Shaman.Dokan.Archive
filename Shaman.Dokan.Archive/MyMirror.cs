@@ -254,7 +254,7 @@ namespace Shaman.Dokan
                         {
                             var dir = GetFileInfo(x.FullName);
 
-                            if (CheckHasValidChildren(x, "*.rar"))
+                            //if (CheckHasValidChildren(x, "*.rar"))
                                 dirs.Add(dir);
                         });
 
@@ -348,7 +348,7 @@ namespace Shaman.Dokan
 
         FileInformation GetFileInformation(FsNode<FileInfo> item)
         {
-            logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
+            //logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
             if (item == null)
                 return new FileInformation();
 
