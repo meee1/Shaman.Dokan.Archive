@@ -45,8 +45,10 @@ namespace Shaman.Dokan
             {
                 var myfs = new MyMirror(filedir);
                 mounts.Add("X:");
-                myfs.Mount("X:", DokanOptions.NetworkDrive, 4, new NullLogger());
-
+                try
+                {
+                    myfs.Mount("X:", DokanOptions.NetworkDrive, 4, new NullLogger());
+                } catch { }
             }).Start();
       
             while (!cancel)
