@@ -26,13 +26,18 @@ namespace Shaman.Dokan
         private FsNode<RarArchiveEntry> root;
         public SharpCompressFs(string path)
         {
-            zipfile = path;
+            lock (this)
+            {
+                zipfile = path;
 
-            root = CreateTree<RarArchiveEntry>(extractor.Entries, x => x.Key, x => x.IsDirectory);
+                root = CreateTree<RarArchiveEntry>(extractor.Entries, x => x.Key, x => x.IsDirectory);
 
-            CheckDirectorys(root);
+                CheckDirectorys(root);
 
-            extractor.Dispose();
+                extractor.Dispose();
+
+                extractor = null;
+            }
         }
 
         void CheckDirectorys(FsNode<RarArchiveEntry> myroot)
@@ -69,17 +74,20 @@ namespace Shaman.Dokan
                 {
                     Console.WriteLine("SharpCompressFs ReadData: " + fileName);
 
-                    var entry = extractor.Entries.First(a => a.Key.EndsWith(fileName));
+                    lock (this)
+                    {
+                        var entry = extractor.Entries.First(a => a.Key.EndsWith(fileName));
 
-                    if (entry.RarParts.First().FileHeader.PackingMethod == 0x30)
-                    {
-                        // stored
-                        info.Context = new RarStoreStream(entry);
-                    }
-                    else
-                    {
-                        //info.Context = new MemoryStream(entry.OpenEntryStream());
-                        return NtStatus.AccessDenied;
+                        if (entry.RarParts.First().FileHeader.PackingMethod == 0x30)
+                        {
+                            // stored
+                            info.Context = new RarStoreStream(entry);
+                        }
+                        else
+                        {
+                            //info.Context = new MemoryStream(entry.OpenEntryStream());
+                            return NtStatus.AccessDenied;
+                        }
                     }
                 }
                 return NtStatus.Success;

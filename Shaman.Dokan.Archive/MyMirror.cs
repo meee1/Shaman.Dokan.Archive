@@ -63,6 +63,11 @@ namespace Shaman.Dokan
             Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
 
             // invalidate cache
+            var file = GetNode(root, Path.GetDirectoryName(e.FullPath).ToLower().Replace(root.FullName.ToLower(), ""));
+            if (file != null)
+            {
+                file.Children = null;
+            }
             var dir = GetFileInfo(Path.GetDirectoryName(e.FullPath));
             if (dir != null)
             {
@@ -82,9 +87,9 @@ namespace Shaman.Dokan
         public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
         {
             var tid = Thread.CurrentThread.ManagedThreadId;
-            /*
+           
             logger.Debug(tid+" CreateFileProxy : {0}", fileName);
-            logger.Debug(tid + " \tCreationDisposition\t{0}", (FileMode)mode);
+         /*   logger.Debug(tid + " \tCreationDisposition\t{0}", (FileMode)mode);
             logger.Debug(tid + " \tFileAccess\t{0}", (DokanNet.FileAccess)access);
             logger.Debug(tid + " \tFileShare\t{0}", (FileShare)share);
             logger.Debug(tid + " \tFileOptions\t{0}", options);
@@ -144,6 +149,7 @@ namespace Shaman.Dokan
 
         ConcurrentDictionary<string, SharpCompressFs> cache = new ConcurrentDictionary<string, SharpCompressFs>();
 
+
         public FsNode<FileInfo> GetFile(string fileName)
         {
             return GetNode(root, fileName);
@@ -165,7 +171,7 @@ namespace Shaman.Dokan
         
         private FsNode<FileInfo> GetFileInfo(string fileName, FileInfo prefileinfo = null)
         {
-            logger.Debug("GetFile: " + fileName);
+            logger.Debug(Thread.CurrentThread.ManagedThreadId +" GetFileInfo: " + fileName);
 
             if (!File.Exists(fileName) && !Directory.Exists(fileName) ||
                 fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
@@ -188,7 +194,14 @@ namespace Shaman.Dokan
                         if (fs == null)
                         {
                             logger.Debug("SevenZipFs: get list " + file);
-                            fs = new SharpCompressFs(file);
+                            try
+                            {
+                                fs = new SharpCompressFs(file);
+                            }
+                            catch
+                            {
+                                return null;
+                            }
                         }
 
                         cache[file.ToLower()] = fs;
@@ -252,10 +265,8 @@ namespace Shaman.Dokan
                         var dirs = new ConcurrentBag<FsNode<FileInfo>>();
                         Parallel.ForEach(dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly), x =>
                         {
-                            var dir = GetFileInfo(x.FullName);
-
-                            //if (CheckHasValidChildren(x, "*.rar"))
-                                dirs.Add(dir);
+                            if (CheckHasValidChildren(x, "*.rar"))
+                                dirs.Add(GetFileInfo(x.FullName));
                         });
 
                         // get files
@@ -294,8 +305,11 @@ namespace Shaman.Dokan
                 if (files.Length > 0)
                     return true;
 
+                if (dirs.Length == 0)
+                    return false;
+
                 // to save time show the dir if its deep
-                if (level >= 3) // base/1/2/*
+                if (level >= 1) // base/1/2/*
                     return true;
 
                 foreach (var dir in dirs)
@@ -312,13 +326,18 @@ namespace Shaman.Dokan
 
         public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
         {
+            logger.Debug(Thread.CurrentThread.ManagedThreadId+" GetFileInformation<NtStatus>: {0} ", fileName);
+
             var item = GetFile(fileName);
             if (item == null)
             {
                 fileInfo = default(FileInformation);
+                logger.Debug("GetFileInformation<NtStatus>: {0} FileNotFound", fileName);
                 return DokanResult.FileNotFound;
             }
             fileInfo = GetFileInformation(item);
+
+            logger.Debug("GetFileInformation<NtStatus>: {0} Success", fileName);
             return NtStatus.Success;
         }
 
@@ -348,7 +367,7 @@ namespace Shaman.Dokan
 
         FileInformation GetFileInformation(FsNode<FileInfo> item)
         {
-            //logger.Debug("GetFileInformation: {0} {1}" ,item.FullName, item.Info.Attributes);
+            logger.Debug(Thread.CurrentThread.ManagedThreadId+" GetFileInformation<FsNode>: {0} {1}" ,item.FullName, item.Info.Attributes);
             if (item == null)
                 return new FileInformation();
 
