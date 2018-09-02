@@ -62,8 +62,13 @@ namespace Shaman.Dokan
 
             Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
 
+            var path = Path.GetDirectoryName(e.FullPath).ToLower().Replace(root.FullName.ToLower(), "");
+
+            if (path == "")
+                return;
+
             // invalidate cache
-            var file = GetNode(root, Path.GetDirectoryName(e.FullPath).ToLower().Replace(root.FullName.ToLower(), ""));
+            var file = GetNode(root, path);
             if (file != null)
             {
                 file.Children = null;
