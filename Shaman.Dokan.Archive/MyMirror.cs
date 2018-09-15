@@ -266,30 +266,35 @@ namespace Shaman.Dokan
 
                     if (dirinfo.Exists)
                     {
-                        // get dirs
-                        var dirs = new ConcurrentBag<FsNode<FileInfo>>();
-                        Parallel.ForEach(dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly), x =>
+                        try
                         {
-                            if (CheckHasValidChildren(x, "*.rar"))
-                                dirs.Add(GetFileInfo(x.FullName));
-                        });
+                            // get dirs
+                            var dirs = new ConcurrentBag<FsNode<FileInfo>>();
+                            Parallel.ForEach(dirinfo.GetDirectories("*", SearchOption.TopDirectoryOnly), x =>
+                            {
+                                if (CheckHasValidChildren(x, "*.rar"))
+                                    dirs.Add(GetFileInfo(x.FullName));
+                            });
 
-                        // get files
-                        var files = new ConcurrentBag<FsNode<FileInfo>>();
-                        var fileInfos = dirinfo.GetFiles("*.rar", SearchOption.TopDirectoryOnly);
-                        Parallel.ForEach(fileInfos, x =>
+                            // get files
+                            var files = new ConcurrentBag<FsNode<FileInfo>>();
+                            var fileInfos = dirinfo.GetFiles("*.rar", SearchOption.TopDirectoryOnly);
+                            Parallel.ForEach(fileInfos, x => { files.Add(GetFileInfo(x.FullName, x)); });
+                            // filter files
+                            var filefilter = files.Where(a =>
+                                a != null &&
+                                (a.Name.ToLower().Contains("part01.rar") || !a.Name.ToLower().Contains(".part")));
+
+                            // combine to one list
+                            var combined = filefilter.Concat(dirs).Where(a => a != null);
+                            // return result
+                            return combined.ToList();
+                        }
+                        catch (Exception ex)
                         {
-                            files.Add(GetFileInfo(x.FullName, x));
-                        });
-                        // filter files
-                        var filefilter = files.Where(a =>
-                            a != null &&
-                            (a.Name.ToLower().Contains("part01.rar") || !a.Name.ToLower().Contains(".part")));
-
-                        // combine to one list
-                        var combined = filefilter.Concat(dirs).Where(a => a != null);
-                        // return result
-                        return combined.ToList();
+                            logger.Error(ex.ToString());
+                            return null;
+                        }
                     }
                     return null;
                 }
