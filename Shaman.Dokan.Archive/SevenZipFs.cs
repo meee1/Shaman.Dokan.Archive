@@ -95,7 +95,7 @@ namespace Shaman.Dokan
 
         private object readerLock = new object();
 
-        public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
+        public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, IDokanFileInfo info)
        {
             if (IsBadName(fileName)) return NtStatus.ObjectNameInvalid;
             if ((access & ModificationAttributes) != 0) return NtStatus.DiskFull;
@@ -127,7 +127,7 @@ namespace Shaman.Dokan
         
         public  MemoryStreamCache<FsNode<ArchiveFileInfo>> cache;
 
-        public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
+        public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
         {
             var item = GetFile(fileName);
             if (item == null)
@@ -139,7 +139,7 @@ namespace Shaman.Dokan
             return NtStatus.Success;
         }
 
-        public override NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, DokanFileInfo info)
+        public override NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, IDokanFileInfo info)
         {
             fileSystemName = volumeLabel = "SevenZipFs";
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.UnicodeOnDisk | FileSystemFeatures.VolumeIsCompressed;
@@ -178,7 +178,7 @@ namespace Shaman.Dokan
             };
         }
 
-        public override void Cleanup(string fileName, DokanFileInfo info)
+        public override void Cleanup(string fileName, IDokanFileInfo info)
         {
         }
     }

@@ -44,13 +44,12 @@ namespace Shaman.Dokan
                     Thread.Sleep(5000);
                     //Console.WriteLine("*******");
                     //Status();
-                    foreach (var item in MemoryStreamInternal.instances.ToArray())
+                    foreach (var item in cache.ToArray())
                     {
-                        Console.WriteLine("MemoryStreamInternal: {0} len: {1} datalen: {2}", item.Filename, item.Length, item.data?.Length);
+                        Console.WriteLine("cache: {0} name: {1} ", item.Key, item.Value.SimpleMountName);
                     }
                 }
-            }) { IsBackground = true }.Start();
-        }
+            }) { IsBackground = true }.Start();        }
 
         private void Fsw_Changed(object sender, FileSystemEventArgs e)
         {
@@ -61,27 +60,34 @@ namespace Shaman.Dokan
             }
 
             Console.WriteLine("File Changed {0} {1}", e.FullPath, e.ChangeType.ToString());
-
-            var path = Path.GetDirectoryName(e.FullPath).ToLower().Replace(root.FullName.ToLower(), "");
-
-            if (path == "")
-                return;
-
-            // invalidate cache
-            var file = GetNode(root, path);
-            if (file != null)
+            try
             {
-                file.Children = null;
+                var path = Path.GetDirectoryName(e.FullPath).ToLower().Replace(root.FullName.ToLower(), "");
+
+                if (path == "")
+                    return;
+
+                // invalidate cache
+                var file = GetNode(root, path);
+                if (file != null)
+                {
+                    file.Children = null;
+                }
+
+                var dir = GetFileInfo(Path.GetDirectoryName(e.FullPath));
+                if (dir != null)
+                {
+                    dir.Children = null;
+                    Console.WriteLine("Children set to null for " + dir.FullName);
+                }
+                else
+                {
+                    Console.WriteLine("Failed to invalidate children " + dir);
+                }
             }
-            var dir = GetFileInfo(Path.GetDirectoryName(e.FullPath));
-            if (dir != null)
+            catch
             {
-                dir.Children = null;
-                Console.WriteLine("Children set to null for " + dir.FullName);
-            }
-            else
-            {
-                Console.WriteLine("Failed to invalidate children " + dir);
+                //Unhandled Exception: System.IO.PathTooLongException: The specified path, file name, or both are too long. The fully qualified file name must be less than 260 characters, and the directory name must be less than 248 characters.
             }
         }
 
@@ -89,7 +95,7 @@ namespace Shaman.Dokan
 
         DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[MyMirror]");
 
-        public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, DokanFileInfo info)
+        public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, IDokanFileInfo info)
         {
             var tid = Thread.CurrentThread.ManagedThreadId;
            
@@ -153,25 +159,10 @@ namespace Shaman.Dokan
         }
 
         ConcurrentDictionary<string, SharpCompressFs> cache = new ConcurrentDictionary<string, SharpCompressFs>();
-
-
+        
         public FsNode<FileInfo> GetFile(string fileName)
         {
             return GetNode(root, fileName);
-        }
-
-        void Status()
-        {
-            var memory = GC.GetTotalMemory(false);
-
-            foreach (var item in cache.ToArray())
-            {
-                /*foreach (var item2 in item.Value.cache.streams.ToArray())
-                {
-                    logger.Debug("Status: {0} {1} {2} {3} {4} {5} {6}", memory / 1024 / 1024, item2.Value.Filename,
-                        item.Key, "", item2.Key.FullName, item2.Value.ms.data?.Length, item2.Value.Lastread);
-                }*/
-            }
         }
         
         private FsNode<FileInfo> GetFileInfo(string fileName, FileInfo prefileinfo = null)
@@ -334,7 +325,7 @@ namespace Shaman.Dokan
             return false;
         }
 
-        public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, DokanFileInfo info)
+        public override NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
         {
             logger.Debug(Thread.CurrentThread.ManagedThreadId+" GetFileInformation<NtStatus>: {0} ", fileName);
 
@@ -413,14 +404,14 @@ namespace Shaman.Dokan
             };
         }
 
-        public override NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, DokanFileInfo info)
+        public override NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, IDokanFileInfo info)
         {
             fileSystemName = volumeLabel = "MyMirror";
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.UnicodeOnDisk | FileSystemFeatures.VolumeIsCompressed;
             return NtStatus.Success;
         }
 
-        public override NtStatus GetDiskFreeSpace(out long free, out long total, out long used, DokanFileInfo info)
+        public override NtStatus GetDiskFreeSpace(out long free, out long total, out long used, IDokanFileInfo info)
         {
             free = 0;
             total = 1024L*1024*1024*1024;
@@ -460,7 +451,7 @@ namespace Shaman.Dokan
             return new List<FileInformation>();
         }
 
-        public override void Cleanup(string fileName, DokanFileInfo info)
+        public override void Cleanup(string fileName, IDokanFileInfo info)
         {
         }
     }
