@@ -93,7 +93,7 @@ namespace Shaman.Dokan
 
         public override string SimpleMountName => "MyMirror-" + path;
 
-        DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[MyMirror]");
+        static DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[MyMirror]");
 
         public override NtStatus CreateFile(string fileName, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, IDokanFileInfo info)
         {
@@ -122,7 +122,7 @@ namespace Shaman.Dokan
 
                     if (archive != null)
                     {
-                        var idx = fileName.ToLower().IndexOf(archive.FullName.ToLower());
+                        var idx = fileName.ToLower().IndexOf(archive.FullName?.ToLower() ?? archive.Name);
                         var file = fileName.Substring(0, idx-1);
 
                         try
@@ -169,8 +169,11 @@ namespace Shaman.Dokan
         {
             logger.Debug(Thread.CurrentThread.ManagedThreadId +" GetFileInfo: " + fileName);
 
-            if (!File.Exists(fileName) && !Directory.Exists(fileName) ||
-                fileName.ToLower().EndsWith(".rar") || fileName.ToLower().EndsWith(".zip"))
+            var lowerfilename = fileName.ToLower();
+
+            // check extension first, then if it exists
+            if (lowerfilename.EndsWith(".rar") || lowerfilename.EndsWith(".zip") || 
+                (lowerfilename.Contains(".rar") || lowerfilename.Contains(".zip")) && !File.Exists(fileName) && !Directory.Exists(fileName))
             {
                 if (fileName.ToLower().Contains(".rar") || fileName.ToLower().Contains(".zip"))
                 {
@@ -320,7 +323,10 @@ namespace Shaman.Dokan
                         return true;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
 
             return false;
         }
@@ -359,7 +365,7 @@ namespace Shaman.Dokan
             {
                 //var children = info.GetChildrenDelegate();
 
-                if (((FsNode<RarArchiveEntry>) info.Tag).Info.IsDirectory)
+                if (((FsNode<RarArchiveEntry>)info.Tag).Info != null && ((FsNode<RarArchiveEntry>) info.Tag).Info.IsDirectory)
                     return true;
                 return false;
             }
@@ -393,6 +399,13 @@ namespace Shaman.Dokan
                 };
             }
 
+            var lastwrite = DateTime.MinValue;
+            try
+            {
+                lastwrite = item.Info.LastWriteTime;
+            }
+            catch { }
+
             return new FileInformation()
             {
                 FileName = item.Info.Name,
@@ -400,7 +413,7 @@ namespace Shaman.Dokan
                 Attributes = isdir ? (FileAttributes.Directory) : attrib,
                 CreationTime = item.Info.CreationTime,
                 LastAccessTime = item.Info.LastAccessTime,
-                LastWriteTime = item.Info.LastWriteTime,
+                LastWriteTime = lastwrite,
             };
         }
 
@@ -437,7 +450,15 @@ namespace Shaman.Dokan
                     var matcher = GetMatcher(searchPattern);
                     var list = new ConcurrentBag<FileInformation>();
                     var where = item.Children.Where(x => x != null && matcher(x.Name));
-                    Parallel.ForEach(where, x => { list.Add(GetFileInformation(x)); });
+                    Parallel.ForEach(where, x => {
+                        try
+                        {
+                            list.Add(GetFileInformation(x));
+                        }
+                        catch (Exception e)
+                        {
+                        }
+                    });
                     return list.ToArray();
                 }
             }

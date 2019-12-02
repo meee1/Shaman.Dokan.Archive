@@ -15,7 +15,7 @@ namespace Shaman.Dokan
 {
     public class SharpCompressFs : ReadOnlyFs
     {
-        DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[SharpCompressFs]");
+        static DokanNet.Logging.ILogger logger = new DokanNet.Logging.ConsoleLogger("[SharpCompressFs]");
 
         private RarArchive _ext;
         public RarArchive extractor
@@ -24,6 +24,11 @@ namespace Shaman.Dokan
             set { _ext = value; }
         }
         private FsNode<RarArchiveEntry> root;
+
+        ~SharpCompressFs()
+        {
+            _ext?.Dispose();
+        }
         public SharpCompressFs(string path)
         {
             lock (this)
