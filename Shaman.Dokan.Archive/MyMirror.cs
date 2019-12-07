@@ -47,6 +47,11 @@ namespace Shaman.Dokan
                     foreach (var item in cache.ToArray())
                     {
                         Console.WriteLine("cache: {0} name: {1} ", item.Key, item.Value.SimpleMountName);
+                        if (item.Value.LastAccessed.AddHours(1) < DateTime.Now)
+                        {
+                            item.Value?.extractor?.Dispose();
+                            item.Value.extractor = null;
+                        }
                     }
                 }
             }) { IsBackground = true }.Start();        }

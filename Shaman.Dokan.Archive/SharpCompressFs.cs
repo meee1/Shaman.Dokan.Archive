@@ -20,9 +20,13 @@ namespace Shaman.Dokan
         private RarArchive _ext;
         public RarArchive extractor
         {
-            get { if (_ext == null || _ext.disposed) _ext = RarArchive.Open(zipfile); return _ext; }
+            get { if (_ext == null || _ext.disposed) _ext = RarArchive.Open(zipfile);
+                LastAccessed = DateTime.Now; return _ext; }
             set { _ext = value; }
         }
+
+        public DateTime LastAccessed = DateTime.Now;
+
         private FsNode<RarArchiveEntry> root;
 
         ~SharpCompressFs()
@@ -77,6 +81,7 @@ namespace Shaman.Dokan
             {
                 if ((access & (DokanNet.FileAccess.ReadData | DokanNet.FileAccess.GenericRead)) != 0)
                 {
+                    LastAccessed = DateTime.Now;
                     Console.WriteLine("SharpCompressFs ReadData: " + fileName);
 
                     lock (this)
