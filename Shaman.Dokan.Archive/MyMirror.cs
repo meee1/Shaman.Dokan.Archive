@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using DokanNet;
@@ -41,20 +43,25 @@ namespace Shaman.Dokan
             {
                 while (true)
                 {
-                    Thread.Sleep(5000);
-                    //Console.WriteLine("*******");
+                    Thread.Sleep(30000);
+                    Console.WriteLine("******* " + (GC.GetTotalMemory(false) / 1024.0 / 1024.0) + " - " +
+                                      (Process.GetCurrentProcess().WorkingSet64 / 1024.0 / 1024.0));
+
                     //Status();
                     foreach (var item in cache.ToArray())
                     {
-                        Console.WriteLine("cache: {0} name: {1} ", item.Key, item.Value.SimpleMountName);
-                        if (item.Value.LastAccessed.AddHours(1) < DateTime.Now)
+                        logger.Debug("cache: {0} name: {1} lastaccess: {2}", item.Key, item.Value.SimpleMountName,
+                            item.Value.LastAccessed);
+                        if (item.Value.LastAccessed.AddMinutes(10) < DateTime.Now)
                         {
                             item.Value?.extractor?.Dispose();
                             item.Value.extractor = null;
+                            GC.Collect();
                         }
                     }
                 }
-            }) { IsBackground = true }.Start();        }
+            }) {IsBackground = true}.Start();
+        }
 
         private void Fsw_Changed(object sender, FileSystemEventArgs e)
         {
@@ -84,6 +91,7 @@ namespace Shaman.Dokan
                 {
                     dir.Children = null;
                     Console.WriteLine("Children set to null for " + dir.FullName);
+                    GC.Collect();
                 }
                 else
                 {
@@ -132,6 +140,10 @@ namespace Shaman.Dokan
 
                         try
                         {
+                            return new SharpCompressFs(path.ToLower() + file.ToLower()).CreateFile(archive.FullName, access, share, mode, options,
+                                attributes,
+                                info);
+
                             var af = cache[path.ToLower() + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
                                 info);
@@ -164,7 +176,8 @@ namespace Shaman.Dokan
         }
 
         ConcurrentDictionary<string, SharpCompressFs> cache = new ConcurrentDictionary<string, SharpCompressFs>();
-        
+        ConcurrentDictionary<string, FsNode<RarArchiveEntry>> cacheFileInfo = new ConcurrentDictionary<string, FsNode<RarArchiveEntry>>();
+
         public FsNode<FileInfo> GetFile(string fileName)
         {
             return GetNode(root, fileName);
@@ -193,9 +206,9 @@ namespace Shaman.Dokan
                         var file = fileName.Substring(0, index + 4);
                         var subpath = fileName.Substring(index + 4);
 
-                        SharpCompressFs fs;
+                        SharpCompressFs fs = null;
                         cache.TryGetValue(file.ToLower(), out fs);
-                        if (fs == null)
+                        if (fs == null || !cacheFileInfo.ContainsKey(file.ToLower() + subpath))
                         {
                             logger.Debug("SevenZipFs: get list " + file);
                             try
@@ -208,8 +221,13 @@ namespace Shaman.Dokan
                             }
                         }
 
-                        cache[file.ToLower()] = fs;
-                        var fsnodeinfo = fs.GetFile(subpath);
+                        //cache[file.ToLower()] = fs;
+                        //var fsnodeinfo = fs.GetFile(subpath);
+
+                        if (!cacheFileInfo.ContainsKey(file.ToLower()+ subpath))
+                            cacheFileInfo[file.ToLower() + subpath] = fs.GetFile(subpath);
+
+                        var fsnodeinfo = cacheFileInfo[file.ToLower() + subpath];
 
                         if (fsnodeinfo == null)
                             return null;
@@ -219,7 +237,8 @@ namespace Shaman.Dokan
                             Tag = fsnodeinfo,
                             Info = info2,
                             Name = info2.Name,
-                            FullName = info2.FullName,
+                            FullName = info2.FullName
+                            
                         };
 
                         answerarchive.GetChildrenDelegate = () =>
@@ -350,7 +369,7 @@ namespace Shaman.Dokan
             fileInfo = GetFileInformation(item);
 
             logger.Debug("GetFileInformation<NtStatus>: {0} Success", fileName);
-            return NtStatus.Success;
+            return NtStatus.Pending;
         }
 
         bool isDirectory(FsNode<FileInfo> info)
@@ -477,8 +496,16 @@ namespace Shaman.Dokan
             return new List<FileInformation>();
         }
 
-        public override void Cleanup(string fileName, IDokanFileInfo info)
+        public override void CloseFile(string fileName, IDokanFileInfo info)
         {
+            if (!info.IsDirectory)
+            {
+                if (cache.ContainsKey(fileName))
+                {
+                    
+                }
+            }
+            base.CloseFile(fileName, info);
         }
     }
 }
