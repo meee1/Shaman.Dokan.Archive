@@ -47,6 +47,7 @@ namespace Shaman.Dokan
                     Console.WriteLine("******* " + (GC.GetTotalMemory(false) / 1024.0 / 1024.0) + " - " +
                                       (Process.GetCurrentProcess().WorkingSet64 / 1024.0 / 1024.0));
 
+                    var dogc = false;
                     //Status();
                     foreach (var item in cache.ToArray())
                     {
@@ -56,9 +57,14 @@ namespace Shaman.Dokan
                         {
                             item.Value?.extractor?.Dispose();
                             item.Value.extractor = null;
-                            GC.Collect();
+                            SharpCompressFs temp;
+                            cache.TryRemove(item.Key, out temp);
+                            dogc = true;
                         }
                     }
+
+                    if(dogc)
+                        GC.Collect();
                 }
             }) {IsBackground = true}.Start();
         }
@@ -140,9 +146,8 @@ namespace Shaman.Dokan
 
                         try
                         {
-                            return new SharpCompressFs(path.ToLower() + file.ToLower()).CreateFile(archive.FullName, access, share, mode, options,
-                                attributes,
-                                info);
+                            if (archive.FullName == null)
+                                return NtStatus.AccessDenied;
 
                             var af = cache[path.ToLower() + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
@@ -176,7 +181,6 @@ namespace Shaman.Dokan
         }
 
         ConcurrentDictionary<string, SharpCompressFs> cache = new ConcurrentDictionary<string, SharpCompressFs>();
-        ConcurrentDictionary<string, FsNode<RarArchiveEntry>> cacheFileInfo = new ConcurrentDictionary<string, FsNode<RarArchiveEntry>>();
 
         public FsNode<FileInfo> GetFile(string fileName)
         {
@@ -208,7 +212,7 @@ namespace Shaman.Dokan
 
                         SharpCompressFs fs = null;
                         cache.TryGetValue(file.ToLower(), out fs);
-                        if (fs == null || !cacheFileInfo.ContainsKey(file.ToLower() + subpath))
+                        if (fs == null)
                         {
                             logger.Debug("SevenZipFs: get list " + file);
                             try
@@ -221,13 +225,8 @@ namespace Shaman.Dokan
                             }
                         }
 
-                        //cache[file.ToLower()] = fs;
-                        //var fsnodeinfo = fs.GetFile(subpath);
-
-                        if (!cacheFileInfo.ContainsKey(file.ToLower()+ subpath))
-                            cacheFileInfo[file.ToLower() + subpath] = fs.GetFile(subpath);
-
-                        var fsnodeinfo = cacheFileInfo[file.ToLower() + subpath];
+                        cache[file.ToLower()] = fs;
+                        var fsnodeinfo = fs.GetFile(subpath);
 
                         if (fsnodeinfo == null)
                             return null;
@@ -363,13 +362,13 @@ namespace Shaman.Dokan
             if (item == null)
             {
                 fileInfo = default(FileInformation);
-                logger.Debug("GetFileInformation<NtStatus>: {0} FileNotFound", fileName);
+                //logger.Debug("GetFileInformation<NtStatus>: {0} FileNotFound", fileName);
                 return DokanResult.FileNotFound;
             }
             fileInfo = GetFileInformation(item);
 
-            logger.Debug("GetFileInformation<NtStatus>: {0} Success", fileName);
-            return NtStatus.Pending;
+            //logger.Debug("GetFileInformation<NtStatus>: {0} Success", fileName);
+            return NtStatus.Success;
         }
 
         bool isDirectory(FsNode<FileInfo> info)

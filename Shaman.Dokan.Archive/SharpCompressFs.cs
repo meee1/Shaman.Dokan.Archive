@@ -160,6 +160,13 @@ namespace Shaman.Dokan
             };
         }
 
+        public override void CloseFile(string fileName, IDokanFileInfo info)
+        {
+            info.Context = null;
+
+            base.CloseFile(fileName, info);
+        }
+
         public override void Cleanup(string fileName, IDokanFileInfo info)
         {
         }
