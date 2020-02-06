@@ -55,7 +55,6 @@ namespace Shaman.Dokan
                             item.Value.LastAccessed);
                         if (item.Value.LastAccessed.AddMinutes(10) < DateTime.Now)
                         {
-                            item.Value?.extractor?.Dispose();
                             item.Value.extractor = null;
                             SharpCompressFs temp;
                             cache.TryRemove(item.Key, out temp);
