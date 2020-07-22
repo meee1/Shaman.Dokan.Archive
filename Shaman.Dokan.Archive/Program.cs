@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using SevenZip;
 using System.IO;
 using System.Threading;
 using DokanNet;
@@ -19,8 +18,6 @@ namespace Shaman.Dokan
 
         static int Main(string[] args)
         {
-            SevenZipExtractor.SetLibraryPath(
-                Path.Combine(Path.GetDirectoryName(typeof(SevenZipProgram).Assembly.Location), "7z.dll"));
             var filedir = args.FirstOrDefault(x => !x.StartsWith("-"));
             if (filedir == null)
             {

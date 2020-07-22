@@ -11,7 +11,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using DokanNet;
-using SevenZip;
 using System.Threading;
 using SharpCompress.Archives.Rar;
 
