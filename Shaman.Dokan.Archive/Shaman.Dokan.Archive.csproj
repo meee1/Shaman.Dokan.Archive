@@ -17,7 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\dokan-dotnet\DokanNet\DokanNet.csproj" />
-    <ProjectReference Include="..\..\SevenZipSharp\SevenZip\Shaman.SevenZipSharp\Shaman.SevenZipSharp.csproj" />
     <ProjectReference Include="..\..\Shaman.Dokan.Base\Shaman.Dokan.Base\Shaman.Dokan.Base.csproj" />
     <ProjectReference Include="..\..\sharpcompress\src\SharpCompress\SharpCompress.csproj" />
   </ItemGroup>
