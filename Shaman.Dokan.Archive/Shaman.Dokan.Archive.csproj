@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net461</TargetFramework>
+    <TargetFrameworks>net461;netcoreapp31</TargetFrameworks>
     <AssemblyOriginatorKeyFile>ShamanOpenSourceKey.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
@@ -22,9 +22,6 @@
     <ProjectReference Include="..\..\sharpcompress\src\SharpCompress\SharpCompress.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="7z.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="profile.bat">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
