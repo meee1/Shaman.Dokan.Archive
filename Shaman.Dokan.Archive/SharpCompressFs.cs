@@ -88,7 +88,7 @@ namespace Shaman.Dokan
                     {
                         var entry = extractor.Entries.First(a => a.Key.EndsWith(fileName));
 
-                        if (entry.RarParts.First().FileHeader.PackingMethod == 0x30)
+                        if (((SharpCompress.Common.Rar.Headers.FileHeader)entry.RarParts.First().FileHeader).IsStored)
                         {
                             // stored
                             info.Context = new RarStoreStream(entry);

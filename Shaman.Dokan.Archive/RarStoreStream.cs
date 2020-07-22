@@ -58,7 +58,7 @@ namespace Shaman.Dokan
                 if (wantstart >= partstart && wantstart < partend || started)
                 {
                     started = true;
-                    using (var st = entryRarPart.GetCompressedStream())
+                    var st = entryRarPart.GetCompressedStream();
                     {
                         var offsetpartstart = (Position - partstart);
                         partsize -= offsetpartstart;
