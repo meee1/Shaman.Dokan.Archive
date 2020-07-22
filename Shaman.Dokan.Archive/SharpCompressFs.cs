@@ -95,6 +95,13 @@ namespace Shaman.Dokan
                         }
                         else
                         {
+                            // 5mb
+                            if (entry.CompressedSize <= 1024*1024*5)
+                            {
+                                info.Context = new MemoryStream();
+                                entry.OpenEntryStream().CopyTo((MemoryStream)info.Context);
+                                return NtStatus.Success;
+                            }
                             //info.Context = new MemoryStream(entry.OpenEntryStream());
                             return NtStatus.AccessDenied;
                         }

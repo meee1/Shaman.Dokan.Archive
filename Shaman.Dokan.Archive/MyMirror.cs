@@ -147,6 +147,9 @@ namespace Shaman.Dokan
                             if (archive.FullName == null)
                                 return NtStatus.AccessDenied;
 
+                            if (cache[path.ToLower() + file.ToLower()] == null)
+                                GetFileInfo(path.ToLower() + file.ToLower());
+
                             var af = cache[path.ToLower() + file.ToLower()].CreateFile(archive.FullName, access, share, mode, options,
                                 attributes,
                                 info);
